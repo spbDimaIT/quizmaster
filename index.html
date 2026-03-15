@@ -23,7 +23,6 @@
             color: #333;
         }
 
-        /* Навигация */
         .navbar {
             background: white;
             padding: 1rem 2rem;
@@ -88,14 +87,12 @@
             font-weight: 500;
         }
 
-        /* Основной контейнер */
         .container {
             max-width: 1200px;
             margin: 2rem auto;
             padding: 0 1rem;
         }
 
-        /* Модальные окна */
         .modal {
             display: none;
             position: fixed;
@@ -130,7 +127,6 @@
             color: #333;
         }
 
-        /* Формы */
         .form-group {
             margin-bottom: 1rem;
         }
@@ -179,17 +175,6 @@
             background: #38a169;
         }
 
-        .btn-small {
-            background: #667eea;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            margin-left: 0.5rem;
-        }
-
         .error-message {
             color: #e53e3e;
             margin-top: 0.5rem;
@@ -202,7 +187,6 @@
             font-size: 0.875rem;
         }
 
-        /* Карточки викторин */
         .quizzes-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -281,14 +265,6 @@
             background: #c53030;
         }
 
-        /* Создание викторины */
-        .create-quiz-section {
-            background: white;
-            border-radius: 10px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
         .question-item {
             background: #f7f7f7;
             border-radius: 5px;
@@ -303,24 +279,6 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
-        }
-
-        .question-image-preview {
-            max-width: 200px;
-            max-height: 150px;
-            margin: 0.5rem 0;
-            border-radius: 5px;
-        }
-
-        .image-upload-btn {
-            background: #667eea;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            margin-left: 0.5rem;
         }
 
         .options-grid {
@@ -371,7 +329,13 @@
             cursor: pointer;
         }
 
-        /* Прохождение викторины */
+        .question-image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
         .quiz-taking {
             background: white;
             border-radius: 10px;
@@ -439,7 +403,6 @@
             color: white;
         }
 
-        /* Адаптивность */
         @media (max-width: 768px) {
             .navbar {
                 flex-direction: column;
@@ -570,7 +533,6 @@
 
         // Глобальные переменные
         let currentUser = null;
-        let currentQuestions = [];
         let userNameCache = {};
 
         // Проверка авторизации
@@ -602,33 +564,36 @@
         }
 
         // Функции для модальных окон
-        function showLoginModal() {
+        window.showLoginModal = function() {
             closeModal('registerModal');
             document.getElementById('loginModal').style.display = 'block';
         }
 
-        function showRegisterModal() {
+        window.showRegisterModal = function() {
             closeModal('loginModal');
             document.getElementById('registerModal').style.display = 'block';
         }
 
-        function showCreateQuizModal() {
+        window.showCreateQuizModal = function() {
             if (!currentUser) {
                 alert('Необходимо войти в систему');
                 showLoginModal();
                 return;
             }
-            currentQuestions = [];
-            document.getElementById('questionsContainer').innerHTML = '';
+            
+            // Очищаем и добавляем первый вопрос
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
             addQuestion();
+            
             document.getElementById('createQuizModal').style.display = 'block';
         }
 
-        function closeModal(modalId) {
+        window.closeModal = function(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
 
-        function closeTakeQuizModal() {
+        window.closeTakeQuizModal = function() {
             document.getElementById('takeQuizModal').style.display = 'none';
         }
 
@@ -683,7 +648,7 @@
         });
 
         // Выход
-        async function logout() {
+        window.logout = async function() {
             try {
                 await auth.signOut();
             } catch (error) {
@@ -691,8 +656,8 @@
             }
         }
 
-        // Добавление вопроса с картинкой
-        function addQuestion() {
+        // Добавление вопроса
+        window.addQuestion = function() {
             const container = document.getElementById('questionsContainer');
             const questionIndex = document.querySelectorAll('.question-item').length;
             
@@ -733,43 +698,45 @@
             `;
             
             container.appendChild(questionDiv);
-            updateQuestionNumbers();
         }
 
         // Предпросмотр изображения
         window.previewImage = function(input) {
             const preview = input.parentElement.querySelector('.image-preview');
-            preview.innerHTML = '';
-            
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'question-image-preview';
-                    preview.appendChild(img);
-                };
-                reader.readAsDataURL(input.files[0]);
+            if (preview) {
+                preview.innerHTML = '';
+                
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'question-image-preview';
+                        preview.appendChild(img);
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
             }
-        };
+        }
 
         // Удаление вопроса
         window.removeQuestion = function(button) {
             const questionDiv = button.closest('.question-item');
-            questionDiv.remove();
-            updateQuestionNumbers();
-        };
-
-        // Обновление номеров вопросов
-        function updateQuestionNumbers() {
-            const questions = document.querySelectorAll('.question-item');
-            questions.forEach((q, idx) => {
-                q.querySelector('h4').textContent = `Вопрос ${idx + 1}`;
-                const radios = q.querySelectorAll('input[type="radio"]');
-                radios.forEach(radio => {
-                    radio.name = `correct_${idx}`;
+            if (questionDiv) {
+                questionDiv.remove();
+                // Обновляем номера вопросов
+                const questions = document.querySelectorAll('.question-item');
+                questions.forEach((q, idx) => {
+                    const header = q.querySelector('h4');
+                    if (header) {
+                        header.textContent = `Вопрос ${idx + 1}`;
+                    }
+                    const radios = q.querySelectorAll('input[type="radio"]');
+                    radios.forEach(radio => {
+                        radio.name = `correct_${idx}`;
+                    });
                 });
-            });
+            }
         }
 
         // Создание викторины
@@ -785,35 +752,70 @@
             const description = document.getElementById('quizDescription').value;
             const questionItems = document.querySelectorAll('.question-item');
             
-            const questions = [];
-            
-            for (let i = 0; i < questionItems.length; i++) {
-                const item = questionItems[i];
-                const questionText = item.querySelector('.question-text').value;
-                const options = item.querySelectorAll('.option-text');
-                const correctIndex = parseInt(item.querySelector('input[type="radio"]:checked').value);
-                
-                const optionTexts = [];
-                options.forEach(opt => optionTexts.push(opt.value));
-                
-                let imageUrl = null;
-                const imageInput = item.querySelector('.question-image');
-                if (imageInput && imageInput.files && imageInput.files[0]) {
-                    const file = imageInput.files[0];
-                    const storageRef = storage.ref(`quiz_images/${Date.now()}_${file.name}`);
-                    await storageRef.put(file);
-                    imageUrl = await storageRef.getDownloadURL();
-                }
-                
-                questions.push({
-                    text: questionText,
-                    options: optionTexts,
-                    correct: correctIndex,
-                    imageUrl: imageUrl
-                });
+            if (questionItems.length === 0) {
+                alert('Добавьте хотя бы один вопрос');
+                return;
             }
             
+            const questions = [];
+            const createQuizError = document.getElementById('createQuizError');
+            createQuizError.textContent = '';
+            
             try {
+                // Блокируем кнопку
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Создание...';
+                submitBtn.disabled = true;
+                
+                for (let i = 0; i < questionItems.length; i++) {
+                    const item = questionItems[i];
+                    const questionText = item.querySelector('.question-text')?.value;
+                    const options = item.querySelectorAll('.option-text');
+                    const correctRadio = item.querySelector('input[type="radio"]:checked');
+                    
+                    if (!questionText) {
+                        throw new Error(`Вопрос ${i + 1}: введите текст вопроса`);
+                    }
+                    
+                    const optionTexts = [];
+                    let hasEmptyOption = false;
+                    options.forEach(opt => {
+                        if (!opt.value) hasEmptyOption = true;
+                        optionTexts.push(opt.value);
+                    });
+                    
+                    if (hasEmptyOption) {
+                        throw new Error(`Вопрос ${i + 1}: заполните все варианты ответов`);
+                    }
+                    
+                    if (!correctRadio) {
+                        throw new Error(`Вопрос ${i + 1}: выберите правильный ответ`);
+                    }
+                    
+                    const correctIndex = parseInt(correctRadio.value);
+                    
+                    let imageUrl = null;
+                    const imageInput = item.querySelector('.question-image');
+                    if (imageInput && imageInput.files && imageInput.files[0]) {
+                        const file = imageInput.files[0];
+                        if (file.size > 5 * 1024 * 1024) {
+                            throw new Error(`Вопрос ${i + 1}: изображение слишком большое (макс 5MB)`);
+                        }
+                        const storageRef = storage.ref(`quiz_images/${Date.now()}_${file.name}`);
+                        await storageRef.put(file);
+                        imageUrl = await storageRef.getDownloadURL();
+                    }
+                    
+                    questions.push({
+                        text: questionText,
+                        options: optionTexts,
+                        correct: correctIndex,
+                        imageUrl: imageUrl
+                    });
+                }
+                
+                // Сохраняем в Firestore
                 await db.collection('quizzes').add({
                     title: title,
                     description: description,
@@ -826,30 +828,31 @@
                     totalAnswers: 0
                 });
                 
+                // Возвращаем кнопку
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                // Закрываем и показываем успех
                 closeModal('createQuizModal');
+                alert('Викторина успешно создана!');
                 loadQuizzes();
+                
+                // Очищаем форму
+                document.getElementById('createQuizForm').reset();
+                document.getElementById('questionsContainer').innerHTML = '';
+                
             } catch (error) {
-                document.getElementById('createQuizError').textContent = error.message;
+                console.error('Ошибка:', error);
+                createQuizError.textContent = error.message || 'Ошибка при создании викторины';
+                
+                // Возвращаем кнопку
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.textContent = 'Создать викторину';
+                    submitBtn.disabled = false;
+                }
             }
         });
-
-        // Получение имени пользователя
-        async function getUserName(userId) {
-            if (userNameCache[userId]) {
-                return userNameCache[userId];
-            }
-            
-            try {
-                const userDoc = await db.collection('users').doc(userId).get();
-                if (userDoc.exists) {
-                    userNameCache[userId] = userDoc.data().name;
-                    return userDoc.data().name;
-                }
-            } catch (error) {
-                console.error('Ошибка получения имени:', error);
-            }
-            return 'Неизвестный пользователь';
-        }
 
         // Загрузка викторин
         async function loadQuizzes() {
@@ -873,7 +876,7 @@
                     const quizId = doc.id;
                     
                     // Получаем имя создателя
-                    const authorName = quiz.authorName || await getUserName(quiz.authorId) || quiz.authorEmail || 'Неизвестный пользователь';
+                    const authorName = quiz.authorName || quiz.authorEmail || 'Неизвестный пользователь';
                     
                     // Вычисляем средний процент
                     let averagePercent = 0;
@@ -932,7 +935,7 @@
             } catch (error) {
                 alert('Ошибка при удалении: ' + error.message);
             }
-        };
+        }
 
         // Прохождение викторины
         function takeQuiz(quizId, quiz) {
