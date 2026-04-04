@@ -179,12 +179,14 @@
             color: #e53e3e;
             margin-top: 0.5rem;
             font-size: 0.875rem;
+            text-align: center;
         }
 
         .success-message {
             color: #38a169;
             margin-top: 0.5rem;
             font-size: 0.875rem;
+            text-align: center;
         }
 
         .quizzes-grid {
@@ -403,6 +405,22 @@
             color: white;
         }
 
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .navbar {
                 flex-direction: column;
@@ -492,7 +510,7 @@
                 <div id="questionsContainer"></div>
                 
                 <button type="button" class="add-question-btn" onclick="addQuestion()">+ Добавить вопрос</button>
-                <button type="submit" class="btn">Создать викторину</button>
+                <button type="submit" class="btn" id="createQuizBtn">Создать викторину</button>
                 <div id="createQuizError" class="error-message"></div>
             </form>
         </div>
@@ -565,12 +583,12 @@
 
         // Функции для модальных окон
         window.showLoginModal = function() {
-            closeModal('registerModal');
+            document.getElementById('registerModal').style.display = 'none';
             document.getElementById('loginModal').style.display = 'block';
         }
 
         window.showRegisterModal = function() {
-            closeModal('loginModal');
+            document.getElementById('loginModal').style.display = 'none';
             document.getElementById('registerModal').style.display = 'block';
         }
 
@@ -761,13 +779,15 @@
             const createQuizError = document.getElementById('createQuizError');
             createQuizError.textContent = '';
             
+            const submitBtn = document.getElementById('createQuizBtn');
+            const originalText = submitBtn.textContent;
+            
             try {
                 // Блокируем кнопку
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                const originalText = submitBtn.textContent;
-                submitBtn.textContent = 'Создание...';
+                submitBtn.innerHTML = 'Создание... <span class="loader"></span>';
                 submitBtn.disabled = true;
                 
+                // Сначала собираем все данные без загрузки картинок
                 for (let i = 0; i < questionItems.length; i++) {
                     const item = questionItems[i];
                     const questionText = item.querySelector('.question-text')?.value;
@@ -795,24 +815,50 @@
                     
                     const correctIndex = parseInt(correctRadio.value);
                     
-                    let imageUrl = null;
-                    const imageInput = item.querySelector('.question-image');
-                    if (imageInput && imageInput.files && imageInput.files[0]) {
-                        const file = imageInput.files[0];
-                        if (file.size > 5 * 1024 * 1024) {
-                            throw new Error(`Вопрос ${i + 1}: изображение слишком большое (макс 5MB)`);
-                        }
-                        const storageRef = storage.ref(`quiz_images/${Date.now()}_${file.name}`);
-                        await storageRef.put(file);
-                        imageUrl = await storageRef.getDownloadURL();
-                    }
-                    
                     questions.push({
                         text: questionText,
                         options: optionTexts,
                         correct: correctIndex,
-                        imageUrl: imageUrl
+                        imageUrl: null // Пока null, загрузим позже
                     });
+                }
+                
+                // Теперь загружаем картинки (если есть)
+                for (let i = 0; i < questionItems.length; i++) {
+                    const item = questionItems[i];
+                    const imageInput = item.querySelector('.question-image');
+                    
+                    if (imageInput && imageInput.files && imageInput.files[0]) {
+                        const file = imageInput.files[0];
+                        
+                        // Проверка размера
+                        if (file.size > 5 * 1024 * 1024) {
+                            throw new Error(`Вопрос ${i + 1}: изображение слишком большое (макс 5MB)`);
+                        }
+                        
+                        try {
+                            // Загружаем картинку
+                            const fileName = `${Date.now()}_${i}_${file.name}`;
+                            const storageRef = storage.ref(`quiz_images/${fileName}`);
+                            
+                            // Загружаем с дополнительными настройками
+                            const uploadTask = await storageRef.put(file, {
+                                contentType: file.type,
+                                customMetadata: {
+                                    'uploadedBy': currentUser.uid,
+                                    'questionIndex': i.toString()
+                                }
+                            });
+                            
+                            // Получаем URL
+                            const imageUrl = await storageRef.getDownloadURL();
+                            questions[i].imageUrl = imageUrl;
+                            
+                        } catch (uploadError) {
+                            console.error('Ошибка загрузки:', uploadError);
+                            throw new Error(`Вопрос ${i + 1}: не удалось загрузить изображение. Проверьте настройки Firebase Storage.`);
+                        }
+                    }
                 }
                 
                 // Сохраняем в Firestore
@@ -829,12 +875,12 @@
                 });
                 
                 // Возвращаем кнопку
-                submitBtn.textContent = originalText;
+                submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
                 
                 // Закрываем и показываем успех
                 closeModal('createQuizModal');
-                alert('Викторина успешно создана!');
+                alert('✅ Викторина успешно создана!');
                 loadQuizzes();
                 
                 // Очищаем форму
@@ -843,14 +889,19 @@
                 
             } catch (error) {
                 console.error('Ошибка:', error);
-                createQuizError.textContent = error.message || 'Ошибка при создании викторины';
+                
+                // Показываем понятное сообщение об ошибке
+                if (error.code === 'storage/unauthorized') {
+                    createQuizError.textContent = 'Ошибка доступа к хранилищу. Настройте правила Firebase Storage.';
+                } else if (error.code === 'storage/canceled') {
+                    createQuizError.textContent = 'Загрузка отменена.';
+                } else {
+                    createQuizError.textContent = error.message || 'Ошибка при создании викторины';
+                }
                 
                 // Возвращаем кнопку
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.textContent = 'Создать викторину';
-                    submitBtn.disabled = false;
-                }
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             }
         });
 
